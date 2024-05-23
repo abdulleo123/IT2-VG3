@@ -3,46 +3,57 @@ import os
 import random
 
 pygame.init()
-pygame.mixer.init()
 
-# Constants for screen size
+# Constants for screen size and colors
 WIDTH, HEIGHT = 900, 500
 RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
 
 # Initialize the screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
-# Load image
-image_path = os.path.join('Assets', 'terror.png')
-enemy_image = pygame.image.load(image_path).convert_alpha()
-enemy_width, enemy_height = enemy_image.get_width(), enemy_image.get_height()
+# Load images
+enemy_image_path = os.path.join('Assets', 'terror.png')
+background_image_path = os.path.join('Assets', 'dust.png')
+enemy_image = pygame.image.load(enemy_image_path).convert_alpha()
+background_image = pygame.image.load(background_image_path).convert()
+
+# Scale enemy image to the specified size
+enemy_width, enemy_height = 200, 100  # Smaller size
+enemy_image = pygame.transform.scale(enemy_image, (enemy_width, enemy_height))
+
+# Predefined spawn points (x, y)
+spawn_points = [(100, 350), (190, 300), (300, 350), (400, 250), (500, 300)]
+
+# Font for displaying score
+font = pygame.font.SysFont(None, 36)
 
 class Game:
     def __init__(self):
         self.objects = []
-        self.lives = 10
+        self.score = 0
 
     def spawn_object(self):
-        # Add a new falling object at a random x-position
-        x = random.randint(0, WIDTH - enemy_width)
-        y = random.randint(0, HEIGHT - enemy_height)
+        # Choose a random spawn point
+        x, y = random.choice(spawn_points)
         self.objects.append(Enemy(x, y, enemy_width, enemy_height, enemy_image))
 
     def update(self):
-        # Create a copy of the list to avoid modifying it while iterating
-        for obj in self.objects[:]:
-            # Update the object if necessary
-            if obj.rect.y >= HEIGHT:
-                self.objects.remove(obj)
-                self.lives -= 1
-                print("Object removed")
+        # No need to update position since enemies are static
+        pass
 
     def check_collisions(self, crosshair):
         for obj in self.objects[:]:
             if crosshair.get_rect().colliderect(obj.get_rect()):
                 self.objects.remove(obj)
-                print("Collision!")
+                self.score += 1
+                print("Collision! Score:", self.score)
+
+    def draw_score(self, WIN):
+        score_text = font.render(f'Score: {self.score}', True, GREEN)
+        WIN.blit(score_text, (10, 20))
 
 class Enemy:
     def __init__(self, x, y, width, height, image):
@@ -72,10 +83,12 @@ game = Game()
 crosshair = Crosshair()
 
 running = True
+spawn_timer = 0
+spawn_delay = 2000  # Spawn delay in milliseconds
 
 while running:
     for event in pygame.event.get():
-        if event.type == pygame.QUIT or game.lives <= 0:
+        if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # Check for collisions when the mouse is clicked
@@ -84,18 +97,20 @@ while running:
     # Update the crosshair position to the mouse position
     crosshair.x, crosshair.y = pygame.mouse.get_pos()
 
-    # Spawn new objects with a certain probability each frame
-    if random.random() < 0.01:
+    # Spawn new objects with a certain delay
+    if pygame.time.get_ticks() - spawn_timer > spawn_delay:
         game.spawn_object()
+        spawn_timer = pygame.time.get_ticks()
 
     game.update()
 
     # Draw everything
-    screen.fill((0, 0, 0))
+    screen.blit(background_image, (0, 0))  # Draw the background
     for obj in game.objects:
         obj.draw(screen)
 
     crosshair.draw(screen)
+    game.draw_score(screen)
 
     pygame.display.flip()
 
